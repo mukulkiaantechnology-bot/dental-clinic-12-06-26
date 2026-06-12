@@ -1,0 +1,469 @@
+// This is your Prisma schema file
+// Exactly matches HMS CoreSaaS frontend data contracts
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ENUMS ────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  super_admin
+  clinic_owner
+  dentist
+  hygienist
+  front_desk
+  billing_staff
+  lab_coordinator
+  dental_assistant
+  patient
+}
+
+enum UserStatus {
+  Approved
+  Pending_Approval
+  Suspended
+}
+
+enum ClinicStatus {
+  Active
+  Trialing
+  Suspended
+}
+
+enum ClinicPlan {
+  Basic
+  Premium
+  Enterprise
+  Trial
+}
+
+enum AppointmentStatus {
+  Scheduled
+  Checked_In
+  In_Progress
+  Ready_For_Doctor
+  Completed
+  Cancelled
+  No_Show
+}
+
+enum PatientStatus {
+  Active
+  Inactive
+}
+
+enum TreatmentStatus {
+  Proposed
+  Accepted
+  Completed
+  Rejected
+}
+
+enum InvoiceStatus {
+  Paid
+  Partial
+  Unpaid
+  Overdue
+}
+
+enum LabCaseStatus {
+  Created
+  Sent
+  In_Progress
+  Ready
+  Delivered
+}
+
+enum LabCaseType {
+  Crown
+  Implant
+  Bridge
+  Denture
+  Aligner
+  Retainer
+}
+
+enum ImplantStage {
+  Planning
+  Manufacturing
+  Ready
+  Delivered
+}
+
+enum AppointmentStage {
+  SCHEDULED
+  CONFIRMED
+  CHECKED_IN
+  IN_PROGRESS
+  CLEANING_PENDING
+  TREATMENT_PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum AlertSeverity {
+  info
+  warning
+  success
+  critical
+}
+
+// ─── MODELS ───────────────────────────────────────────────────────────────────
+
+model Clinic {
+  id               String      @id @default(uuid())
+  name             String
+  location         String
+  phone            String
+  status           ClinicStatus @default(Active)
+  plan             ClinicPlan   @default(Basic)
+  monthlyFee       Float        @default(0)
+  performanceScore Int          @default(80)
+  aiModules        Json         @default("{\"diagnostic\":false,\"recallSMS\":false,\"workload\":false}")
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  // Relations
+  users        User[]
+  patients     Patient[]
+  appointments Appointment[]
+  invoices     Invoice[]
+  labCases     LabCase[]
+  aiLogs       AiLog[]
+  saasInvoices SaasInvoice[]
+  auditLogs    AuditLog[]
+  alerts       Alert[]
+
+  @@map("clinics")
+}
+
+model User {
+  id        String     @id @default(uuid())
+  clinicId  String?
+  name      String
+  email     String     @unique
+  password  String
+  role      UserRole
+  status    UserStatus @default(Pending_Approval)
+  phone     String?
+  speciality String?
+  avatarUrl String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  // Relations
+  clinic       Clinic?       @relation(fields: [clinicId], references: [id])
+  refreshTokens RefreshToken[]
+  appointments Appointment[] @relation("DentistAppointments")
+  doctorAppointments    Appointment[] @relation("DoctorAppointments")
+  assistantAppointments Appointment[] @relation("AssistantAppointments")
+  hygienistAppointments Appointment[] @relation("HygienistAppointments")
+  alerts                Alert[]
+  aiLogs       AiLog[]
+  auditLogs    AuditLog[]
+  patientProfile Patient?    @relation("PatientUser")
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @db.Text
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model Patient {
+  id        String        @id @default(uuid())
+  clinicId  String
+  userId    String?       @unique
+  name      String
+  age       Int
+  gender    String?
+  phone     String
+  email     String?
+  status    PatientStatus @default(Active)
+  address   String?
+  vitals    String?       @db.Text
+  allergies String?
+  insuranceProvider String?
+  history   String?       @db.Text
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  // Relations
+  clinic          Clinic          @relation(fields: [clinicId], references: [id])
+  user            User?           @relation("PatientUser", fields: [userId], references: [id])
+  appointments    Appointment[]
+  treatmentPlans  TreatmentPlan[]
+  xrayFiles       XrayFile[]
+  prescriptions   Prescription[]
+  clinicalNotes   ClinicalNote[]
+  invoices        Invoice[]
+  labCases        LabCase[]
+  odontogram      Odontogram?
+
+  @@map("patients")
+}
+
+model Appointment {
+  id            String            @id @default(uuid())
+  clinicId      String
+  patientId     String
+  dentistId     String?
+  patientName   String
+  dentistName   String
+  hygienistName String?
+  date          DateTime          @db.Date
+  time          String
+  duration      Int               @default(60)
+  status        AppointmentStatus @default(Scheduled)
+  type          String
+  notes         String?           @db.Text
+  assignedTo    String?           // 'hygienist' | 'dentist' | 'assistant'
+  assignedDoctorId    String?
+  assignedAssistantId String?
+  assignedHygienistId String?
+  workflowStage       AppointmentStage @default(SCHEDULED)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  clinic  Clinic  @relation(fields: [clinicId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id])
+  dentist User?   @relation("DentistAppointments", fields: [dentistId], references: [id])
+  assignedDoctor     User?   @relation("DoctorAppointments", fields: [assignedDoctorId], references: [id])
+  assignedAssistant  User?   @relation("AssistantAppointments", fields: [assignedAssistantId], references: [id])
+  assignedHygienist  User?   @relation("HygienistAppointments", fields: [assignedHygienistId], references: [id])
+
+  @@map("appointments")
+}
+
+model Odontogram {
+  id        String   @id @default(uuid())
+  clinicId  String
+  patientId String   @unique
+  chartData Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@map("odontograms")
+}
+
+model TreatmentPlan {
+  id        String          @id @default(uuid())
+  clinicId  String
+  patientId String
+  tooth     String
+  procedure String
+  cost      Float
+  status    TreatmentStatus @default(Proposed)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@map("treatment_plans")
+}
+
+model XrayFile {
+  id        String   @id @default(uuid())
+  clinicId  String
+  patientId String
+  name      String
+  date      DateTime @db.Date
+  notes     String?  @db.Text
+  isScanned Boolean  @default(false)
+  aiReport  String?  @db.Text
+  fileUrl   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@map("xray_files")
+}
+
+model ClinicalNote {
+  id        String   @id @default(uuid())
+  clinicId  String
+  patientId String
+  content   String   @db.LongText
+  authorId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@map("clinical_notes")
+}
+
+model Prescription {
+  id        String   @id @default(uuid())
+  clinicId  String
+  patientId String
+  drug      String
+  dosage    String
+  frequency String
+  duration  String
+  date      DateTime @db.Date
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@map("prescriptions")
+}
+
+model Invoice {
+  id            String        @id @default(uuid())
+  clinicId      String
+  patientId     String
+  patientName   String
+  date          DateTime      @db.Date
+  dueDate       DateTime      @db.Date
+  amount        Float
+  tax           Float         @default(0)
+  discount      Float         @default(0)
+  insurancePaid Float         @default(0)
+  patientPaid   Float         @default(0)
+  status        InvoiceStatus @default(Unpaid)
+  items         Json          @default("[]")
+  labCaseId     String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  clinic  Clinic  @relation(fields: [clinicId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@map("invoices")
+}
+
+model LabCase {
+  id               String        @id @default(uuid())
+  clinicId         String
+  patientId        String
+  patientName      String
+  dentistName      String
+  type             LabCaseType
+  status           LabCaseStatus @default(Created)
+  expectedDelivery DateTime      @db.Date
+  cost             Float
+  notes            String?       @db.Text
+  attachments      Json          @default("[]")
+  labName          String        @default("Pending Assignment")
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  clinic       Clinic        @relation(fields: [clinicId], references: [id])
+  patient      Patient       @relation(fields: [patientId], references: [id])
+  crownDetails CrownCase?
+  implantDetails ImplantCase?
+
+  @@map("lab_cases")
+}
+
+model CrownCase {
+  id          String   @id @default(uuid())
+  caseId      String   @unique
+  toothNumber String
+  material    String   @default("Ceramic")
+  shade       String   @default("A1")
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  labCase LabCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@map("crown_cases")
+}
+
+model ImplantCase {
+  id            String       @id @default(uuid())
+  caseId        String       @unique
+  stage         ImplantStage @default(Planning)
+  planningNotes String?      @db.Text
+  dimensions    String?
+  surgicalNotes String?      @db.Text
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  labCase LabCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@map("implant_cases")
+}
+
+model AiLog {
+  id        String   @id @default(uuid())
+  clinicId  String
+  userId    String
+  module    String
+  prompt    String   @db.Text
+  response  String   @db.LongText
+  createdAt DateTime @default(now())
+
+  clinic Clinic @relation(fields: [clinicId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@map("ai_logs")
+}
+
+model SaasInvoice {
+  id         String   @id @default(uuid())
+  clinicId   String
+  clinicName String
+  amount     Float
+  issueDate  DateTime @db.Date
+  status     String   @default("Unpaid")
+  plan       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  clinic Clinic @relation(fields: [clinicId], references: [id])
+
+  @@map("saas_invoices")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  clinicId  String?
+  userId    String
+  action    String   @db.Text
+  clinic    String?
+  timestamp DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  clinicRel Clinic? @relation(fields: [clinicId], references: [id])
+  user      User    @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+model Alert {
+  id        String        @id @default(uuid())
+  clinicId  String
+  userId    String?
+  role      UserRole?
+  title     String
+  message   String        @db.Text
+  type      AlertSeverity @default(info)
+  read      Boolean       @default(false)
+  createdAt DateTime      @default(now())
+
+  clinic Clinic @relation(fields: [clinicId], references: [id])
+  user   User?  @relation(fields: [userId], references: [id])
+
+  @@map("alerts")
+}
