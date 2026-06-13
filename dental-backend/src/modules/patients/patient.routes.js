@@ -46,4 +46,52 @@ router.delete(
   controller.remove
 );
 
+router.put(
+  '/:id/odontogram',
+  authorize('super_admin', 'clinic_owner', 'dentist', 'dental_assistant'),
+  controller.updateOdontogram
+);
+
+router.post(
+  '/:id/treatment-plans',
+  authorize('super_admin', 'clinic_owner', 'dentist', 'dental_assistant'),
+  controller.createTreatmentPlan
+);
+
+router.put(
+  '/:id/treatment-plans/:planId',
+  authorize('super_admin', 'clinic_owner', 'dentist', 'dental_assistant'),
+  controller.updateTreatmentPlan
+);
+
+router.delete(
+  '/:id/treatment-plans/:planId',
+  authorize('super_admin', 'clinic_owner', 'dentist', 'dental_assistant'),
+  controller.deleteTreatmentPlan
+);
+
+router.post(
+  '/:id/prescriptions',
+  authorize('super_admin', 'clinic_owner', 'dentist'),
+  controller.createPrescription
+);
+
+router.delete(
+  '/:id/prescriptions/:rxId',
+  authorize('super_admin', 'clinic_owner', 'dentist'),
+  controller.deletePrescription
+);
+
+router.post(
+  '/:id/notes',
+  authorize('super_admin', 'clinic_owner', 'dentist', 'dental_assistant', 'hygienist'),
+  controller.createClinicalNote
+);
+
+router.post(
+  '/:id/xrays',
+  authorize('super_admin', 'clinic_owner', 'dentist', 'dental_assistant', 'hygienist'),
+  controller.createXray
+);
+
 module.exports = router;

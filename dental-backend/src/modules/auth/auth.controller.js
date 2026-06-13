@@ -203,7 +203,7 @@ const listClinicsPublic = async (req, res, next) => {
   try {
     const clinics = await prisma.clinic.findMany({
       where: { status: 'Active' },
-      select: { id: true, name: true }
+      select: { id: true, name: true, location: true, phone: true, status: true }
     });
     return success(res, clinics, 'Public clinics list fetched successfully');
   } catch (err) {

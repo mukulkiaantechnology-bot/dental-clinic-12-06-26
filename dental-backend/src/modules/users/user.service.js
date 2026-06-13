@@ -72,6 +72,20 @@ const createUser = async (body) => {
     throw Object.assign(new Error('Email is already registered'), { statusCode: 400 });
   }
 
+  // Enforce plan maxUsers limit
+  if (clinicId) {
+    const sub = await prisma.subscription.findUnique({
+      where: { clinicId },
+      include: { plan: true }
+    });
+    if (sub && sub.status === 'active') {
+      const userCount = await prisma.user.count({ where: { clinicId } });
+      if (userCount >= sub.plan.maxUsers) {
+        throw Object.assign(new Error(`User limit reached for your plan: ${sub.plan.name} (Max ${sub.plan.maxUsers} users/staff). Please upgrade your plan.`), { statusCode: 400 });
+      }
+    }
+  }
+
   const hashedPassword = await hashPassword(password || '123456');
 
   const user = await prisma.user.create({

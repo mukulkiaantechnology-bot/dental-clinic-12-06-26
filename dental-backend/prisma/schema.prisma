@@ -139,6 +139,9 @@ model Clinic {
   saasInvoices SaasInvoice[]
   auditLogs    AuditLog[]
   alerts       Alert[]
+  subscription Subscription?
+  waitlistItems    WaitlistItem[]
+  insuranceChecks  InsuranceCheck[]
 
   @@map("clinics")
 }
@@ -421,19 +424,54 @@ model AiLog {
 }
 
 model SaasInvoice {
-  id         String   @id @default(uuid())
-  clinicId   String
-  clinicName String
-  amount     Float
-  issueDate  DateTime @db.Date
-  status     String   @default("Unpaid")
-  plan       String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id              String   @id @default(uuid())
+  clinicId        String
+  clinicName      String
+  amount          Float
+  issueDate       DateTime @db.Date
+  status          String   @default("Unpaid")
+  plan            String
+  stripeInvoiceId String?  @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  clinic Clinic @relation(fields: [clinicId], references: [id])
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
 
   @@map("saas_invoices")
+}
+
+model Plan {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  price       Float
+  features    Json     @default("[]")
+  maxClinics  Int      @default(1)
+  maxUsers    Int      @default(5)
+  maxPatients Int      @default(50)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id                   String    @id @default(uuid())
+  clinicId             String    @unique
+  planId               String
+  stripeCustomerId     String?
+  stripeSubscriptionId String?   @unique
+  status               String    @default("inactive") // 'active', 'canceled', 'past_due', 'inactive'
+  startDate            DateTime  @default(now())
+  endDate              DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  plan   Plan   @relation(fields: [planId], references: [id])
+
+  @@map("subscriptions")
 }
 
 model AuditLog {
@@ -467,3 +505,34 @@ model Alert {
 
   @@map("alerts")
 }
+
+model WaitlistItem {
+  id            String   @id @default(uuid())
+  clinicId      String
+  patientName   String
+  phone         String
+  preferredTime String
+  priority      String
+  reason        String
+  addedTime     DateTime @default(now())
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@map("waitlist_items")
+}
+
+model InsuranceCheck {
+  id              String   @id @default(uuid())
+  clinicId        String
+  patientName     String
+  provider        String
+  policyNumber    String
+  status          String   @default("Pending")
+  coverageDetails String   @db.Text
+  lastChecked     DateTime @default(now())
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@map("insurance_checks")
+}
+

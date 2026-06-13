@@ -20,11 +20,23 @@ const createAlert = async ({ clinicId, userId, role, title, message, type }) => 
 
 /**
  * List alerts scoped to a clinic and filtered by user/role
+ * super_admin with no clinicId sees all alerts across all clinics
  */
 const listAlerts = async ({ clinicId, userId, role }) => {
+  // super_admin without clinicId: show all alerts platform-wide
+  if (role === 'super_admin' && !clinicId) {
+    return await prisma.alert.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 200
+    });
+  }
+
+  // No clinicId at all: return empty
+  if (!clinicId) return [];
+
   const where = { clinicId };
 
-  // Clinic owners and super admins see all alerts for their clinic
+  // Clinic owners see all alerts for their clinic
   if (role !== 'clinic_owner' && role !== 'super_admin') {
     where.OR = [
       // Alerts specific to this user
@@ -56,6 +68,16 @@ const markAsRead = async (id) => {
  * Mark all alerts as read for a specific user/role context
  */
 const markAllAsRead = async ({ clinicId, userId, role }) => {
+  // super_admin without clinicId: mark all globally
+  if (role === 'super_admin' && !clinicId) {
+    return await prisma.alert.updateMany({
+      where: { read: false },
+      data: { read: true }
+    });
+  }
+
+  if (!clinicId) return { count: 0 };
+
   const where = {
     clinicId,
     read: false

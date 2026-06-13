@@ -32,6 +32,13 @@ const listPatients = async ({ clinicId }) => {
 const getPatientById = async ({ id, clinicId }) => {
   const patient = await prisma.patient.findFirst({
     where: { id, clinicId },
+    include: {
+      odontogram: true,
+      treatmentPlans: true,
+      xrayFiles: true,
+      prescriptions: true,
+      clinicalNotes: true
+    }
   });
   if (!patient) {
     throw Object.assign(new Error('Patient not found'), { statusCode: 404 });
@@ -44,6 +51,20 @@ const getPatientById = async ({ id, clinicId }) => {
  */
 const createPatient = async ({ clinicId, body }) => {
   const { name, age, gender, phone, email, status, address, allergies, insuranceProvider, vitals, history, password } = body;
+
+  // Enforce plan maxPatients limit
+  if (clinicId) {
+    const sub = await prisma.subscription.findUnique({
+      where: { clinicId },
+      include: { plan: true }
+    });
+    if (sub && sub.status === 'active') {
+      const patientCount = await prisma.patient.count({ where: { clinicId } });
+      if (patientCount >= sub.plan.maxPatients) {
+        throw Object.assign(new Error(`Patient limit reached for your plan: ${sub.plan.name} (Max ${sub.plan.maxPatients} patients). Please upgrade your plan.`), { statusCode: 400 });
+      }
+    }
+  }
 
   const allergyStr = Array.isArray(allergies)
     ? allergies.join(', ')
@@ -226,11 +247,99 @@ const deletePatient = async ({ id, clinicId }) => {
   return { id };
 };
 
+const updateOdontogram = async ({ patientId, clinicId, chartData }) => {
+  return prisma.odontogram.upsert({
+    where: { patientId },
+    update: { chartData },
+    create: { clinicId, patientId, chartData }
+  });
+};
+
+const createTreatmentPlan = async ({ patientId, clinicId, tooth, procedure, cost, status }) => {
+  return prisma.treatmentPlan.create({
+    data: {
+      clinicId,
+      patientId,
+      tooth,
+      procedure,
+      cost: parseFloat(cost) || 0,
+      status: status || 'Proposed'
+    }
+  });
+};
+
+const updateTreatmentPlan = async ({ planId, clinicId, status }) => {
+  return prisma.treatmentPlan.update({
+    where: { id: planId },
+    data: { status }
+  });
+};
+
+const deleteTreatmentPlan = async ({ planId, clinicId }) => {
+  return prisma.treatmentPlan.delete({
+    where: { id: planId }
+  });
+};
+
+const createPrescription = async ({ patientId, clinicId, drug, dosage, frequency, duration }) => {
+  return prisma.prescription.create({
+    data: {
+      clinicId,
+      patientId,
+      drug,
+      dosage,
+      frequency,
+      duration,
+      date: new Date()
+    }
+  });
+};
+
+const deletePrescription = async ({ rxId, clinicId }) => {
+  return prisma.prescription.delete({
+    where: { id: rxId }
+  });
+};
+
+const createClinicalNote = async ({ patientId, clinicId, content, authorId }) => {
+  return prisma.clinicalNote.create({
+    data: {
+      clinicId,
+      patientId,
+      content,
+      authorId
+    }
+  });
+};
+
+const createXray = async ({ patientId, clinicId, name, notes, isScanned, aiReport, fileUrl }) => {
+  return prisma.xrayFile.create({
+    data: {
+      clinicId,
+      patientId,
+      name,
+      date: new Date(),
+      notes: notes || '',
+      isScanned: isScanned || false,
+      aiReport: aiReport || '',
+      fileUrl: fileUrl || ''
+    }
+  });
+};
+
 module.exports = {
   listPatients,
   getPatientById,
   createPatient,
   updatePatient,
   deletePatient,
+  updateOdontogram,
+  createTreatmentPlan,
+  updateTreatmentPlan,
+  deleteTreatmentPlan,
+  createPrescription,
+  deletePrescription,
+  createClinicalNote,
+  createXray
 };
 

@@ -8,16 +8,67 @@ async function main() {
   console.log('🌱 Starting database seed...');
 
   // ─── CLEANUP ──────────────────────────────────────────────────────────────
-  await prisma.saasInvoice.deleteMany();
-  await prisma.auditLog.deleteMany();
+  await prisma.subscription.deleteMany();
+  await prisma.plan.deleteMany();
+  await prisma.crownCase.deleteMany();
+  await prisma.implantCase.deleteMany();
+  await prisma.labCase.deleteMany();
+  await prisma.odontogram.deleteMany();
+  await prisma.treatmentPlan.deleteMany();
+  await prisma.xrayFile.deleteMany();
+  await prisma.prescription.deleteMany();
+  await prisma.clinicalNote.deleteMany();
+  await prisma.invoice.deleteMany();
   await prisma.appointment.deleteMany();
   await prisma.patient.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.aiLog.deleteMany();
+  await prisma.saasInvoice.deleteMany();
+  await prisma.auditLog.deleteMany();
+  await prisma.alert.deleteMany();
   await prisma.user.deleteMany();
   await prisma.clinic.deleteMany();
 
   console.log('🗑️  Cleared existing records');
+
+  // ─── PLANS ─────────────────────────────────────────────────────────────────
+  const basicPlan = await prisma.plan.create({
+    data: {
+      id: 'plan-basic',
+      name: 'Basic',
+      price: 99.00,
+      features: ['Core HMS', 'Basic Reports'],
+      maxClinics: 1,
+      maxUsers: 5,
+      maxPatients: 50
+    }
+  });
+
+  const proPlan = await prisma.plan.create({
+    data: {
+      id: 'plan-pro',
+      name: 'Pro',
+      price: 299.00,
+      features: ['Core HMS', 'Extended Reports', 'AI Copilot Widget'],
+      maxClinics: 1,
+      maxUsers: 15,
+      maxPatients: 500
+    }
+  });
+
+  const enterprisePlan = await prisma.plan.create({
+    data: {
+      id: 'plan-enterprise',
+      name: 'Enterprise',
+      price: 499.00,
+      features: ['Core HMS', 'Unlimited Reports', 'AI Copilot Widget', 'AI Recall SMS Campaigns'],
+      maxClinics: 1,
+      maxUsers: 9999,
+      maxPatients: 99999
+    }
+  });
+
+  console.log('Plan options seeded');
 
   // ─── CLINICS ───────────────────────────────────────────────────────────────
   const clinic1 = await prisma.clinic.create({
@@ -77,6 +128,45 @@ async function main() {
   });
 
   console.log('✅ 4 Clinics created');
+
+  // ─── SUBSCRIPTIONS ─────────────────────────────────────────────────────────
+  await prisma.subscription.create({
+    data: {
+      clinicId: 'clinic-1',
+      planId: 'plan-enterprise',
+      status: 'active',
+      startDate: new Date('2026-05-01')
+    }
+  });
+
+  await prisma.subscription.create({
+    data: {
+      clinicId: 'clinic-2',
+      planId: 'plan-pro',
+      status: 'active',
+      startDate: new Date('2026-05-01')
+    }
+  });
+
+  await prisma.subscription.create({
+    data: {
+      clinicId: 'clinic-3',
+      planId: 'plan-basic',
+      status: 'active',
+      startDate: new Date('2026-05-01')
+    }
+  });
+
+  await prisma.subscription.create({
+    data: {
+      clinicId: 'clinic-4',
+      planId: 'plan-basic',
+      status: 'inactive',
+      startDate: new Date('2026-05-01')
+    }
+  });
+
+  console.log('Subscriptions seeded');
 
   const hashedPassword = await bcrypt.hash('123456', 10);
 
