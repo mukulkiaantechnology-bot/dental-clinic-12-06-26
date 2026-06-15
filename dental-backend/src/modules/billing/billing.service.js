@@ -188,9 +188,221 @@ const deactivateSubscription = async (stripeSubscriptionId) => {
   console.log(`[SaaS Subscriptions] Suspended clinic ${subscription.clinicId} subscription (Stripe ID: ${stripeSubscriptionId})`);
 };
 
+const listInvoices = async (clinicId) => {
+  return prisma.invoice.findMany({
+    where: { clinicId },
+    orderBy: { date: 'desc' }
+  });
+};
+
+const createInvoice = async (clinicId, data) => {
+  return prisma.invoice.create({
+    data: {
+      id: data.id || `inv-${Date.now()}`,
+      clinicId,
+      patientId: data.patientId,
+      patientName: data.patientName,
+      date: data.date ? new Date(data.date) : new Date(),
+      dueDate: data.dueDate ? new Date(data.dueDate) : new Date(),
+      amount: parseFloat(data.amount) || 0.0,
+      tax: parseFloat(data.tax) || 0.0,
+      discount: parseFloat(data.discount) || 0.0,
+      insurancePaid: parseFloat(data.insurancePaid) || 0.0,
+      patientPaid: parseFloat(data.patientPaid) || 0.0,
+      status: data.status || 'Unpaid',
+      items: data.items || []
+    }
+  });
+};
+
+const updateInvoice = async (clinicId, id, updates) => {
+  // Convert numeric and date fields if present
+  const data = { ...updates };
+  if (updates.date) data.date = new Date(updates.date);
+  if (updates.dueDate) data.dueDate = new Date(updates.dueDate);
+  if (updates.amount !== undefined) data.amount = parseFloat(updates.amount);
+  if (updates.tax !== undefined) data.tax = parseFloat(updates.tax);
+  if (updates.discount !== undefined) data.discount = parseFloat(updates.discount);
+  if (updates.insurancePaid !== undefined) data.insurancePaid = parseFloat(updates.insurancePaid);
+  if (updates.patientPaid !== undefined) data.patientPaid = parseFloat(updates.patientPaid);
+
+  await prisma.invoice.updateMany({
+    where: { id, clinicId },
+    data
+  });
+  return prisma.invoice.findFirst({ where: { id, clinicId } });
+};
+
+const deleteInvoice = async (clinicId, id) => {
+  return prisma.invoice.deleteMany({
+    where: { id, clinicId }
+  });
+};
+
+const listPayments = async (clinicId) => {
+  return prisma.payment.findMany({
+    where: { clinicId },
+    orderBy: { date: 'desc' }
+  });
+};
+
+const createPayment = async (clinicId, data) => {
+  const payment = await prisma.payment.create({
+    data: {
+      id: data.id || `pay-${Date.now()}`,
+      clinicId,
+      invoiceId: data.invoiceId,
+      patientName: data.patientName,
+      amount: parseFloat(data.amount) || 0.0,
+      method: data.method,
+      date: data.date ? new Date(data.date) : new Date(),
+      note: data.note || ''
+    }
+  });
+
+  // Re-calculate linked invoice balances
+  const invoice = await prisma.invoice.findFirst({ where: { id: data.invoiceId, clinicId } });
+  if (invoice) {
+    let newPatientPaid = invoice.patientPaid;
+    let newInsurancePaid = invoice.insurancePaid;
+    if (data.method === 'Insurance') {
+      newInsurancePaid += parseFloat(data.amount);
+    } else {
+      newPatientPaid += parseFloat(data.amount);
+    }
+    const totalPaid = newPatientPaid + newInsurancePaid;
+    const newStatus = totalPaid >= invoice.amount ? 'Paid' : 'Partial';
+    await prisma.invoice.update({
+      where: { id: invoice.id },
+      data: {
+        patientPaid: newPatientPaid,
+        insurancePaid: newInsurancePaid,
+        status: newStatus
+      }
+    });
+  }
+
+  return payment;
+};
+
+const deletePayment = async (clinicId, id) => {
+  const payment = await prisma.payment.findFirst({ where: { id, clinicId } });
+  if (!payment) return { count: 0 };
+
+  const invoice = await prisma.invoice.findFirst({ where: { id: payment.invoiceId, clinicId } });
+  if (invoice) {
+    let newPatientPaid = invoice.patientPaid;
+    let newInsurancePaid = invoice.insurancePaid;
+    if (payment.method === 'Insurance') {
+      newInsurancePaid = Math.max(0.0, newInsurancePaid - payment.amount);
+    } else {
+      newPatientPaid = Math.max(0.0, newPatientPaid - payment.amount);
+    }
+    const totalPaid = newPatientPaid + newInsurancePaid;
+    const newStatus = totalPaid === 0 ? 'Unpaid' : totalPaid >= invoice.amount ? 'Paid' : 'Partial';
+    await prisma.invoice.update({
+      where: { id: invoice.id },
+      data: {
+        patientPaid: newPatientPaid,
+        insurancePaid: newInsurancePaid,
+        status: newStatus
+      }
+    });
+  }
+
+  return prisma.payment.deleteMany({
+    where: { id, clinicId }
+  });
+};
+
+const listClaims = async (clinicId) => {
+  return prisma.claim.findMany({
+    where: { clinicId },
+    orderBy: { submittedDate: 'desc' }
+  });
+};
+
+const createClaim = async (clinicId, data) => {
+  return prisma.claim.create({
+    data: {
+      id: data.id || `clm-${Date.now()}`,
+      clinicId,
+      invoiceId: data.invoiceId,
+      patientName: data.patientName,
+      carrier: data.carrier,
+      claimAmount: parseFloat(data.claimAmount) || 0.0,
+      approvedAmount: parseFloat(data.approvedAmount) || 0.0,
+      submittedDate: data.submittedDate ? new Date(data.submittedDate) : new Date(),
+      status: data.status || 'Pending',
+      note: data.note || ''
+    }
+  });
+};
+
+const updateClaimStatus = async (clinicId, id, status, approvedAmount) => {
+  await prisma.claim.updateMany({
+    where: { id, clinicId },
+    data: {
+      status,
+      ...(approvedAmount !== undefined && { approvedAmount: parseFloat(approvedAmount) })
+    }
+  });
+  return prisma.claim.findFirst({ where: { id, clinicId } });
+};
+
+const deleteClaim = async (clinicId, id) => {
+  return prisma.claim.deleteMany({
+    where: { id, clinicId }
+  });
+};
+
+const listStatements = async (clinicId) => {
+  return prisma.statement.findMany({
+    where: { clinicId },
+    orderBy: { generatedDate: 'desc' }
+  });
+};
+
+const createStatement = async (clinicId, data) => {
+  return prisma.statement.create({
+    data: {
+      id: data.id || `stmt-${Date.now()}`,
+      clinicId,
+      patientId: data.patientId,
+      patientName: data.patientName,
+      generatedDate: new Date(),
+      periodStart: new Date(data.periodStart),
+      periodEnd: new Date(data.periodEnd),
+      totalBilled: parseFloat(data.totalBilled) || 0.0,
+      totalPaid: parseFloat(data.totalPaid) || 0.0,
+      balance: parseFloat(data.balance) || 0.0
+    }
+  });
+};
+
+const deleteStatement = async (clinicId, id) => {
+  return prisma.statement.deleteMany({
+    where: { id, clinicId }
+  });
+};
+
 module.exports = {
   getSubscriptionByClinicId,
   createCheckoutSession,
   activateSubscription,
-  deactivateSubscription
+  deactivateSubscription,
+  listInvoices,
+  createInvoice,
+  updateInvoice,
+  deleteInvoice,
+  listPayments,
+  createPayment,
+  deletePayment,
+  listClaims,
+  createClaim,
+  updateClaimStatus,
+  deleteClaim,
+  listStatements,
+  createStatement,
+  deleteStatement
 };

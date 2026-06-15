@@ -17,6 +17,7 @@ const buildProfile = (user) => ({
   avatarUrl: user.avatarUrl || null,
   status: user.status,
   patientId: user.patientProfile?.id || null,
+  clinic: user.clinic || null,
 });
 
 /**
@@ -65,7 +66,7 @@ const register = async ({ name, email, password, role, clinicId, avatarUrl }) =>
 const login = async ({ email, password }) => {
   const user = await prisma.user.findUnique({
     where: { email },
-    include: { patientProfile: true }
+    include: { patientProfile: true, clinic: true }
   });
 
   if (!user) {
@@ -146,7 +147,7 @@ const refreshAccessToken = async (refreshToken) => {
 
   const user = await prisma.user.findUnique({
     where: { id: decoded.id },
-    include: { patientProfile: true }
+    include: { patientProfile: true, clinic: true }
   });
   if (!user) {
     throw Object.assign(new Error('User not found'), { statusCode: 401 });

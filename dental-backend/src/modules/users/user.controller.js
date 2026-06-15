@@ -95,6 +95,34 @@ const listDentists = async (req, res, next) => {
   }
 };
 
+/**
+ * GET /users/staff/assistants
+ * Returns all approved assistants in the caller's clinic.
+ */
+const listAssistants = async (req, res, next) => {
+  try {
+    const clinicId = req.user.clinicId;
+    const assistants = await userService.listUsers({ clinicId, role: 'dental_assistant' });
+    return success(res, assistants, 'Assistants fetched successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /users/staff/hygienists
+ * Returns all approved hygienists in the caller's clinic.
+ */
+const listHygienists = async (req, res, next) => {
+  try {
+    const clinicId = req.user.clinicId;
+    const hygienists = await userService.listUsers({ clinicId, role: 'hygienist' });
+    return success(res, hygienists, 'Hygienists fetched successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   list,
   get,
@@ -103,4 +131,7 @@ module.exports = {
   remove,
   approve,
   listDentists,
+  listAssistants,
+  listHygienists,
 };
+

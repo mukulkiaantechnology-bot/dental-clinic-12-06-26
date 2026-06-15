@@ -18,6 +18,9 @@ async function main() {
   await prisma.xrayFile.deleteMany();
   await prisma.prescription.deleteMany();
   await prisma.clinicalNote.deleteMany();
+  await prisma.payment.deleteMany();
+  await prisma.claim.deleteMany();
+  await prisma.statement.deleteMany();
   await prisma.invoice.deleteMany();
   await prisma.appointment.deleteMany();
   await prisma.patient.deleteMany();
@@ -36,8 +39,10 @@ async function main() {
     data: {
       id: 'plan-basic',
       name: 'Basic',
-      price: 99.00,
-      features: ['Core HMS', 'Basic Reports'],
+      price: 149.00,
+      billingPeriod: 'Monthly',
+      status: 'Active',
+      features: ['Up to 3 staff', 'Basic Diagnostics', 'Text Reminders'],
       maxClinics: 1,
       maxUsers: 5,
       maxPatients: 50
@@ -47,9 +52,11 @@ async function main() {
   const proPlan = await prisma.plan.create({
     data: {
       id: 'plan-pro',
-      name: 'Pro',
+      name: 'Premium',
       price: 299.00,
-      features: ['Core HMS', 'Extended Reports', 'AI Copilot Widget'],
+      billingPeriod: 'Monthly',
+      status: 'Active',
+      features: ['Up to 10 staff', 'AI Recall', 'Full Diagnostics', 'Custom SMS'],
       maxClinics: 1,
       maxUsers: 15,
       maxPatients: 500
@@ -61,7 +68,9 @@ async function main() {
       id: 'plan-enterprise',
       name: 'Enterprise',
       price: 499.00,
-      features: ['Core HMS', 'Unlimited Reports', 'AI Copilot Widget', 'AI Recall SMS Campaigns'],
+      billingPeriod: 'Monthly',
+      status: 'Active',
+      features: ['Unlimited staff', 'Full AI Suite', 'Multi-Location Aggregates', '24/7 Priority Support'],
       maxClinics: 1,
       maxUsers: 9999,
       maxPatients: 99999
@@ -565,6 +574,227 @@ async function main() {
   });
 
   console.log('✅ Audit logs seeded');
+
+  // ─── PATIENT INVOICES ──────────────────────────────────────────────────────
+  await prisma.invoice.create({
+    data: {
+      id: 'inv-1001',
+      clinicId: 'clinic-1',
+      patientId: 'pat-1',
+      patientName: 'James Carter',
+      date: new Date('2026-05-14'),
+      dueDate: new Date('2026-05-28'),
+      amount: 180.0,
+      tax: 9.0,
+      discount: 0.0,
+      insurancePaid: 120.0,
+      patientPaid: 60.0,
+      status: 'Paid',
+      items: [
+        { description: 'Comprehensive Exam', cost: 80.0 },
+        { description: 'Prophylaxis - Adult Cleaning', cost: 100.0 }
+      ]
+    }
+  });
+
+  await prisma.invoice.create({
+    data: {
+      id: 'inv-1002',
+      clinicId: 'clinic-1',
+      patientId: 'pat-2',
+      patientName: 'Mary Watson',
+      date: new Date('2026-05-20'),
+      dueDate: new Date('2026-06-03'),
+      amount: 1200.0,
+      tax: 60.0,
+      discount: 0.0,
+      insurancePaid: 800.0,
+      patientPaid: 100.0,
+      status: 'Partial',
+      items: [
+        { description: 'Root Canal - Molar', cost: 950.0 },
+        { description: 'Core Buildup', cost: 250.0 }
+      ]
+    }
+  });
+
+  await prisma.invoice.create({
+    data: {
+      id: 'inv-1003',
+      clinicId: 'clinic-1',
+      patientId: 'pat-3',
+      patientName: 'Alex Johnson',
+      date: new Date('2026-06-01'),
+      dueDate: new Date('2026-06-15'),
+      amount: 3500.0,
+      tax: 175.0,
+      discount: 200.0,
+      insurancePaid: 1500.0,
+      patientPaid: 0.0,
+      status: 'Unpaid',
+      items: [
+        { description: 'Invisalign Treatment Tier 1', cost: 3500.0 }
+      ]
+    }
+  });
+
+  await prisma.invoice.create({
+    data: {
+      id: 'inv-1004',
+      clinicId: 'clinic-1',
+      patientId: 'pat-4',
+      patientName: 'Sarah Jenkins',
+      date: new Date('2026-04-15'),
+      dueDate: new Date('2026-04-29'),
+      amount: 450.0,
+      tax: 22.5,
+      discount: 0.0,
+      insurancePaid: 0.0,
+      patientPaid: 0.0,
+      status: 'Overdue',
+      items: [
+        { description: 'Night Guard Custom', cost: 450.0 }
+      ]
+    }
+  });
+
+  console.log('✅ Invoices seeded');
+
+  // ─── PAYMENTS ─────────────────────────────────────────────────────────────
+  await prisma.payment.create({
+    data: {
+      id: 'pay-001',
+      clinicId: 'clinic-1',
+      invoiceId: 'inv-1001',
+      patientName: 'James Carter',
+      amount: 60.0,
+      method: 'Card',
+      date: new Date('2026-05-14'),
+      note: 'Patient co-pay at checkout'
+    }
+  });
+
+  await prisma.payment.create({
+    data: {
+      id: 'pay-002',
+      clinicId: 'clinic-1',
+      invoiceId: 'inv-1001',
+      patientName: 'James Carter',
+      amount: 120.0,
+      method: 'Insurance',
+      date: new Date('2026-05-18'),
+      note: 'Blue Cross Blue Shield reimbursement'
+    }
+  });
+
+  await prisma.payment.create({
+    data: {
+      id: 'pay-003',
+      clinicId: 'clinic-1',
+      invoiceId: 'inv-1002',
+      patientName: 'Mary Watson',
+      amount: 100.0,
+      method: 'Cash',
+      date: new Date('2026-05-20'),
+      note: 'Partial cash payment at front desk'
+    }
+  });
+
+  await prisma.payment.create({
+    data: {
+      id: 'pay-004',
+      clinicId: 'clinic-1',
+      invoiceId: 'inv-1002',
+      patientName: 'Mary Watson',
+      amount: 800.0,
+      method: 'Insurance',
+      date: new Date('2026-05-26'),
+      note: 'Aetna insurance partial claim payout'
+    }
+  });
+
+  console.log('✅ Payments seeded');
+
+  // ─── CLAIMS ────────────────────────────────────────────────────────────────
+  await prisma.claim.create({
+    data: {
+      id: 'clm-001',
+      clinicId: 'clinic-1',
+      invoiceId: 'inv-1001',
+      patientName: 'James Carter',
+      carrier: 'Blue Cross Blue Shield',
+      claimAmount: 120.0,
+      approvedAmount: 120.0,
+      submittedDate: new Date('2026-05-14'),
+      status: 'Approved',
+      note: 'Full claim approved for preventive services'
+    }
+  });
+
+  await prisma.claim.create({
+    data: {
+      id: 'clm-002',
+      clinicId: 'clinic-1',
+      invoiceId: 'inv-1002',
+      patientName: 'Mary Watson',
+      carrier: 'Aetna',
+      claimAmount: 900.0,
+      approvedAmount: 800.0,
+      submittedDate: new Date('2026-05-20'),
+      status: 'Approved',
+      note: 'Partial approval — deductible applied'
+    }
+  });
+
+  await prisma.claim.create({
+    data: {
+      id: 'clm-003',
+      clinicId: 'clinic-1',
+      invoiceId: 'inv-1003',
+      patientName: 'Alex Johnson',
+      carrier: 'Cigna',
+      claimAmount: 2000.0,
+      approvedAmount: 0.0,
+      submittedDate: new Date('2026-06-01'),
+      status: 'Pending',
+      note: 'Orthodontic pre-authorization pending'
+    }
+  });
+
+  console.log('✅ Claims seeded');
+
+  // ─── STATEMENTS ────────────────────────────────────────────────────────────
+  await prisma.statement.create({
+    data: {
+      id: 'stmt-001',
+      clinicId: 'clinic-1',
+      patientId: 'pat-1',
+      patientName: 'James Carter',
+      generatedDate: new Date('2026-06-01'),
+      periodStart: new Date('2026-01-01'),
+      periodEnd: new Date('2026-06-01'),
+      totalBilled: 180.0,
+      totalPaid: 180.0,
+      balance: 0.0
+    }
+  });
+
+  await prisma.statement.create({
+    data: {
+      id: 'stmt-002',
+      clinicId: 'clinic-1',
+      patientId: 'pat-2',
+      patientName: 'Mary Watson',
+      generatedDate: new Date('2026-06-01'),
+      periodStart: new Date('2026-01-01'),
+      periodEnd: new Date('2026-06-01'),
+      totalBilled: 1200.0,
+      totalPaid: 900.0,
+      balance: 300.0
+    }
+  });
+
+  console.log('✅ Statements seeded');
 
   console.log('');
   console.log('🦷 ─────────────────────────────────────────────────');

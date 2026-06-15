@@ -21,6 +21,8 @@ const listUsers = async ({ clinicId, role }) => {
       avatarUrl: true,
       phone: true,
       speciality: true,
+      assistantId: true,
+      hygienistId: true,
       createdAt: true,
       updatedAt: true,
       clinic: {
@@ -47,6 +49,8 @@ const getUserById = async (id) => {
       avatarUrl: true,
       phone: true,
       speciality: true,
+      assistantId: true,
+      hygienistId: true,
       createdAt: true,
       updatedAt: true,
       clinic: {
@@ -64,7 +68,7 @@ const getUserById = async (id) => {
  * Create a new user
  */
 const createUser = async (body) => {
-  const { name, email, password, role, status, clinicId, avatarUrl, phone, speciality } = body;
+  const { name, email, password, role, status, clinicId, avatarUrl, phone, speciality, assistantId, hygienistId } = body;
 
   // Check unique email
   const existing = await prisma.user.findUnique({ where: { email } });
@@ -99,6 +103,8 @@ const createUser = async (body) => {
       avatarUrl: avatarUrl || null,
       phone: phone || null,
       speciality: speciality || null,
+      assistantId: assistantId || null,
+      hygienistId: hygienistId || null,
     },
     select: {
       id: true,
@@ -110,6 +116,8 @@ const createUser = async (body) => {
       avatarUrl: true,
       phone: true,
       speciality: true,
+      assistantId: true,
+      hygienistId: true,
       createdAt: true,
     }
   });
@@ -126,7 +134,7 @@ const updateUser = async (id, body) => {
     throw Object.assign(new Error('User not found'), { statusCode: 404 });
   }
 
-  const { name, email, password, role, status, clinicId, avatarUrl, phone, speciality } = body;
+  const { name, email, password, role, status, clinicId, avatarUrl, phone, speciality, assistantId, hygienistId } = body;
 
   if (email && email !== user.email) {
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -152,6 +160,8 @@ const updateUser = async (id, body) => {
       ...(avatarUrl !== undefined && { avatarUrl }),
       ...(phone !== undefined && { phone }),
       ...(speciality !== undefined && { speciality }),
+      ...(assistantId !== undefined && { assistantId }),
+      ...(hygienistId !== undefined && { hygienistId }),
     },
     select: {
       id: true,
@@ -163,6 +173,8 @@ const updateUser = async (id, body) => {
       avatarUrl: true,
       phone: true,
       speciality: true,
+      assistantId: true,
+      hygienistId: true,
       createdAt: true,
       updatedAt: true,
     }

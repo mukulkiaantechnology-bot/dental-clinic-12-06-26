@@ -134,8 +134,169 @@ const handleWebhook = async (req, res, next) => {
   }
 };
 
+const listInvoices = async (req, res, next) => {
+  try {
+    const clinicId = req.user.clinicId;
+    const result = await billingService.listInvoices(clinicId);
+    return success(res, result, 'Invoices fetched successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const createInvoice = async (req, res, next) => {
+  try {
+    const clinicId = req.user.clinicId;
+    const result = await billingService.createInvoice(clinicId, req.body);
+    return success(res, result, 'Invoice created successfully', 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const updateInvoice = async (req, res, next) => {
+  try {
+    const clinicId = req.user.clinicId;
+    const { id } = req.params;
+    const result = await billingService.updateInvoice(clinicId, id, req.body);
+    return success(res, result, 'Invoice updated successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const deleteInvoice = async (req, res, next) => {
+  try {
+    const clinicId = req.user.clinicId;
+    const { id } = req.params;
+    await billingService.deleteInvoice(clinicId, id);
+    return success(res, { id }, 'Invoice deleted successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const listPayments = async (req, res, next) => {
+  try {
+    const clinicId = req.user.clinicId;
+    const result = await billingService.listPayments(clinicId);
+    return success(res, result, 'Payments fetched successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const createPayment = async (req, res, next) => {
+  try {
+    const clinicId = req.user.clinicId;
+    const result = await billingService.createPayment(clinicId, req.body);
+    return success(res, result, 'Payment recorded successfully', 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const deletePayment = async (req, res, next) => {
+  try {
+    const clinicId = req.user.clinicId;
+    const { id } = req.params;
+    await billingService.deletePayment(clinicId, id);
+    return success(res, { id }, 'Payment record deleted successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const listClaims = async (req, res, next) => {
+  try {
+    const clinicId = req.user.clinicId;
+    const result = await billingService.listClaims(clinicId);
+    return success(res, result, 'Claims fetched successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const createClaim = async (req, res, next) => {
+  try {
+    const clinicId = req.user.clinicId;
+    const result = await billingService.createClaim(clinicId, req.body);
+    return success(res, result, 'Claim created successfully', 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const updateClaimStatus = async (req, res, next) => {
+  try {
+    const clinicId = req.user.clinicId;
+    const { id } = req.params;
+    const { status, approvedAmount } = req.body;
+    const result = await billingService.updateClaimStatus(clinicId, id, status, approvedAmount);
+    return success(res, result, 'Claim status updated successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const deleteClaim = async (req, res, next) => {
+  try {
+    const clinicId = req.user.clinicId;
+    const { id } = req.params;
+    await billingService.deleteClaim(clinicId, id);
+    return success(res, { id }, 'Claim deleted successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const listStatements = async (req, res, next) => {
+  try {
+    const clinicId = req.user.clinicId;
+    const result = await billingService.listStatements(clinicId);
+    return success(res, result, 'Statements fetched successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const createStatement = async (req, res, next) => {
+  try {
+    const clinicId = req.user.clinicId;
+    const result = await billingService.createStatement(clinicId, req.body);
+    return success(res, result, 'Statement generated successfully', 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const deleteStatement = async (req, res, next) => {
+  try {
+    const clinicId = req.user.clinicId;
+    const { id } = req.params;
+    await billingService.deleteStatement(clinicId, id);
+    return success(res, { id }, 'Statement deleted successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getSubscription,
   createCheckoutSession,
-  handleWebhook
+  handleWebhook,
+  listInvoices,
+  createInvoice,
+  updateInvoice,
+  deleteInvoice,
+  listPayments,
+  createPayment,
+  deletePayment,
+  listClaims,
+  createClaim,
+  updateClaimStatus,
+  deleteClaim,
+  listStatements,
+  createStatement,
+  deleteStatement
 };

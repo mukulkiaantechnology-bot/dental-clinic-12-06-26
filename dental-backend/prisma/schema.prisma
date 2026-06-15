@@ -157,6 +157,8 @@ model User {
   phone     String?
   speciality String?
   avatarUrl String?
+  assistantId String?
+  hygienistId String?
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
@@ -441,15 +443,17 @@ model SaasInvoice {
 }
 
 model Plan {
-  id          String   @id @default(uuid())
-  name        String   @unique
-  price       Float
-  features    Json     @default("[]")
-  maxClinics  Int      @default(1)
-  maxUsers    Int      @default(5)
-  maxPatients Int      @default(50)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(uuid())
+  name          String   @unique
+  price         Float
+  billingPeriod String   @default("Monthly")
+  status        String   @default("Active")
+  features      Json     @default("[]")
+  maxClinics    Int      @default(1)
+  maxUsers      Int      @default(5)
+  maxPatients   Int      @default(50)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   subscriptions Subscription[]
 
@@ -534,5 +538,51 @@ model InsuranceCheck {
   clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
 
   @@map("insurance_checks")
+}
+
+model Payment {
+  id          String   @id @default(uuid())
+  clinicId    String
+  invoiceId   String
+  patientName String
+  amount      Float
+  method      String   // 'Card' | 'Cash' | 'Insurance'
+  date        DateTime @db.Date
+  note        String?  @db.Text
+  createdAt   DateTime @default(now())
+
+  @@map("payments")
+}
+
+model Claim {
+  id             String   @id @default(uuid())
+  clinicId       String
+  invoiceId      String
+  patientName    String
+  carrier        String
+  claimAmount    Float
+  approvedAmount Float    @default(0)
+  submittedDate  DateTime @db.Date
+  status         String   // 'Pending' | 'Approved' | 'Rejected'
+  note           String?  @db.Text
+  createdAt      DateTime @default(now())
+
+  @@map("claims")
+}
+
+model Statement {
+  id            String   @id @default(uuid())
+  clinicId      String
+  patientId     String
+  patientName   String
+  generatedDate DateTime @db.Date
+  periodStart   DateTime @db.Date
+  periodEnd     DateTime @db.Date
+  totalBilled   Float
+  totalPaid     Float
+  balance       Float
+  createdAt     DateTime @default(now())
+
+  @@map("statements")
 }
 

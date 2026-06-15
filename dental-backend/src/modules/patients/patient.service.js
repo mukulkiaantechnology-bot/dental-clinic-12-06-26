@@ -37,12 +37,34 @@ const getPatientById = async ({ id, clinicId }) => {
       treatmentPlans: true,
       xrayFiles: true,
       prescriptions: true,
-      clinicalNotes: true
+      clinicalNotes: {
+        orderBy: {
+          createdAt: 'desc'
+        }
+      }
     }
   });
   if (!patient) {
     throw Object.assign(new Error('Patient not found'), { statusCode: 404 });
   }
+
+  // Resolve authors for clinical notes
+  if (patient.clinicalNotes && patient.clinicalNotes.length > 0) {
+    const authorIds = patient.clinicalNotes.map(n => n.authorId).filter(Boolean);
+    if (authorIds.length > 0) {
+      const authors = await prisma.user.findMany({
+        where: { id: { in: authorIds } },
+        select: { id: true, name: true, role: true }
+      });
+      const authorMap = new Map(authors.map(a => [a.id, a]));
+      patient.clinicalNotes = patient.clinicalNotes.map(n => ({
+        ...n,
+        authorName: authorMap.get(n.authorId)?.name || 'Unknown Staff',
+        authorRole: authorMap.get(n.authorId)?.role || 'Staff'
+      }));
+    }
+  }
+
   return formatPatient(patient);
 };
 

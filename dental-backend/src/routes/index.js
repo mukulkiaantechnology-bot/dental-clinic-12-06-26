@@ -7,6 +7,7 @@ const patientRoutes = require('../modules/patients/patient.routes');
 const clinicRoutes = require('../modules/clinics/clinic.routes');
 const userRoutes = require('../modules/users/user.routes');
 const saasInvoiceRoutes = require('../modules/saasInvoices/saasInvoice.routes');
+const planRoutes = require('../modules/plans/plan.routes');
 const auditLogRoutes = require('../modules/auditLogs/auditLog.routes');
 const alertRoutes = require('../modules/alerts/alert.routes');
 const billingRoutes = require('../modules/billing/billing.routes');
@@ -37,6 +38,7 @@ router.use('/insurance-checks', authenticate, requireActiveSubscription, insuran
 // Platform Management Endpoints
 router.use('/clinics', clinicRoutes);
 router.use('/saas-invoices', saasInvoiceRoutes);
+router.use('/plans', planRoutes);
 router.use('/audit-logs', auditLogRoutes);
 router.use('/alerts', alertRoutes);
 

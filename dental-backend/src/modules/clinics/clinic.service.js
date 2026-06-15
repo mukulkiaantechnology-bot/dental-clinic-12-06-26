@@ -2,6 +2,30 @@
 const prisma = require('../../config/db');
 
 /**
+ * Maps an arbitrary input plan name to a valid ClinicPlan enum value.
+ */
+const mapToClinicPlan = (planName) => {
+  if (!planName) return 'Basic';
+  const name = planName.toLowerCase().trim();
+  if (name.includes('trial') || name.includes('trail')) {
+    return 'Trial';
+  }
+  if (name.includes('premium') || name === 'pro') {
+    return 'Premium';
+  }
+  if (name.includes('enterprise')) {
+    return 'Enterprise';
+  }
+  if (name.includes('basic')) {
+    return 'Basic';
+  }
+  if (['Basic', 'Premium', 'Enterprise', 'Trial'].includes(planName)) {
+    return planName;
+  }
+  return 'Basic';
+};
+
+/**
  * List all clinics (for Super Admin dashboard)
  */
 const listClinics = async () => {
@@ -55,7 +79,7 @@ const createClinic = async (body) => {
       location,
       phone,
       status: status || 'Active',
-      plan: plan || 'Basic',
+      plan: mapToClinicPlan(plan),
       monthlyFee: monthlyFee !== undefined ? Number(monthlyFee) : 149.0,
       performanceScore: performanceScore !== undefined ? Number(performanceScore) : 85,
       aiModules: aiModules || { diagnostic: false, recallSMS: false, workload: false },
@@ -85,7 +109,7 @@ const updateClinic = async (id, body) => {
       ...(location && { location }),
       ...(phone && { phone }),
       ...(status && { status }),
-      ...(plan && { plan }),
+      ...(plan && { plan: mapToClinicPlan(plan) }),
       ...(monthlyFee !== undefined && { monthlyFee: Number(monthlyFee) }),
       ...(performanceScore !== undefined && { performanceScore: Number(performanceScore) }),
       ...(aiModules !== undefined && { aiModules }),
@@ -161,7 +185,7 @@ const updateSubscription = async (id, { plan, status, monthlyFee }) => {
   const updated = await prisma.clinic.update({
     where: { id },
     data: {
-      plan,
+      plan: mapToClinicPlan(plan),
       status,
       monthlyFee: monthlyFee !== undefined ? Number(monthlyFee) : clinic.monthlyFee,
     },

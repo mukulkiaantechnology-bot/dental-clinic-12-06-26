@@ -85,7 +85,7 @@ const getMe = async (req, res, next) => {
  */
 const registerClinic = async (req, res, next) => {
   try {
-    const { clinicName, location, phone, ownerName, ownerEmail, ownerPassword } = req.body;
+    const { clinicName, location, phone, ownerName, ownerEmail, ownerPassword, plan } = req.body;
 
     if (!clinicName || !location || !ownerName || !ownerEmail || !ownerPassword) {
       return error(res, 'All required fields must be provided', 400);
@@ -97,14 +97,24 @@ const registerClinic = async (req, res, next) => {
       return error(res, 'Email is already registered', 400);
     }
 
+    // Lookup plan monthly fee from database
+    let selectedPlanName = plan || 'Trial';
+    let monthlyFee = 0;
+    if (selectedPlanName && selectedPlanName !== 'Trial' && selectedPlanName !== 'Trial Mode') {
+      const dbPlan = await prisma.plan.findFirst({ where: { name: { equals: selectedPlanName } } });
+      if (dbPlan) {
+        monthlyFee = dbPlan.price;
+      }
+    }
+
     // 1. Create the clinic first (Trialing status, no auth required)
     const clinic = await clinicService.createClinic({
       name: clinicName,
       location,
       phone: phone || '',
-      plan: 'Trial',
-      status: 'Trialing',
-      monthlyFee: 0,
+      plan: selectedPlanName,
+      status: selectedPlanName === 'Trial' || selectedPlanName === 'Trial Mode' ? 'Trialing' : 'Active',
+      monthlyFee,
       performanceScore: 80,
       aiModules: { diagnostic: false, recallSMS: false, workload: false },
     });

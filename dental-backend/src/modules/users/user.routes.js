@@ -21,6 +21,26 @@ router.get(
   controller.listDentists
 );
 
+// GET /api/v1/users/staff/assistants — returns all assistants in caller's clinic
+router.get(
+  '/staff/assistants',
+  authorize(
+    'super_admin', 'clinic_owner', 'dentist', 'dental_assistant',
+    'hygienist', 'front_desk', 'billing_staff', 'lab_coordinator'
+  ),
+  controller.listAssistants
+);
+
+// GET /api/v1/users/staff/hygienists — returns all hygienists in caller's clinic
+router.get(
+  '/staff/hygienists',
+  authorize(
+    'super_admin', 'clinic_owner', 'dentist', 'dental_assistant',
+    'hygienist', 'front_desk', 'billing_staff', 'lab_coordinator'
+  ),
+  controller.listHygienists
+);
+
 // ─── Admin-only routes ────────────────────────────────────────────────────────
 
 router.get(
