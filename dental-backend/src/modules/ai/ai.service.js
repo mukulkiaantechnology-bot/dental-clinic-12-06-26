@@ -3,10 +3,11 @@ const { OpenAI } = require('openai');
 const prisma = require('../../config/db');
 const alertService = require('../alerts/alert.service');
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || 'sk_test_mock_ai'
-});
+// Initialize OpenAI client (only if key exists)
+let openai = null;
+if (process.env.OPENAI_API_KEY) {
+  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+}
 
 // Cooldown map to store last alert timestamps per patient to throttle alerts
 // Key: patientId, Value: timestamp (Number)
@@ -17,7 +18,7 @@ const COOLDOWN_DURATION = 30 * 60 * 1000; // 30 minutes in milliseconds
  * Helper to check if OpenAI key is configured
  */
 const hasOpenAIKey = () => {
-  return process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'sk_test_mock_ai';
+  return !!process.env.OPENAI_API_KEY;
 };
 
 /**
@@ -75,7 +76,7 @@ const logAiTransaction = async ({ clinicId, userId, moduleName, promptText, resp
 /**
  * Upgraded Smart Sandbox Simulator Fallback
  */
-const getSmartSandboxDiagnosis = (symptomsText, historyText) => {
+const getFallbackDiagnosis = (symptomsText, historyText) => {
   const combinedText = `${symptomsText || ''} ${historyText || ''}`.toLowerCase();
   
   if (combinedText.includes('bleeding') && combinedText.includes('swelling')) {
@@ -121,7 +122,7 @@ const getSmartSandboxDiagnosis = (symptomsText, historyText) => {
 /**
  * Upgraded Smart Sandbox Treatment Plan Simulator
  */
-const getSmartSandboxTreatmentPlan = (diagnosisText) => {
+const getFallbackTreatmentPlan = (diagnosisText) => {
   const normalized = (diagnosisText || '').toLowerCase();
 
   if (normalized.includes('pulpitis') || normalized.includes('canal') || normalized.includes('pulp')) {
@@ -193,6 +194,9 @@ const getSmartSandboxTreatmentPlan = (diagnosisText) => {
  * Promisified timeout wrapper (3.0 seconds maximum wait)
  */
 const callOpenAIWithTimeout = async (prompt, systemPrompt) => {
+  if (!openai) {
+    throw Object.assign(new Error('OpenAI API key not configured'), { statusCode: 501 });
+  }
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 3000);
 
@@ -243,13 +247,13 @@ Do not include explanations, extra text, or markdown code blocks (e.g. no \`\`\`
         totalTokens: completion.usage?.total_tokens
       };
     } catch (err) {
-      console.warn(`[AI Diagnosis] OpenAI call failed or timed out: ${err.message}. Invoking Smart Sandbox fallback.`);
+      console.warn(`[AI Diagnosis] OpenAI call failed: ${err.message}. Using fallback.`);
       status = 'FALLBACK';
-      resultData = getSmartSandboxDiagnosis(symptoms, history);
+      resultData = getFallbackDiagnosis(symptoms, history);
     }
   } else {
     status = 'FALLBACK';
-    resultData = getSmartSandboxDiagnosis(symptoms, history);
+    resultData = getFallbackDiagnosis(symptoms, history);
   }
 
   // Trigger alert throttling for High-risk patients
@@ -305,13 +309,13 @@ Do not include explanations, extra text, or markdown code blocks (e.g. no \`\`\`
         totalTokens: completion.usage?.total_tokens
       };
     } catch (err) {
-      console.warn(`[AI Treatment Plan] OpenAI call failed or timed out: ${err.message}. Invoking Smart Sandbox fallback.`);
+      console.warn(`[AI Treatment Plan] OpenAI call failed: ${err.message}. Using fallback.`);
       status = 'FALLBACK';
-      resultData = getSmartSandboxTreatmentPlan(diagnosis);
+      resultData = getFallbackTreatmentPlan(diagnosis);
     }
   } else {
     status = 'FALLBACK';
-    resultData = getSmartSandboxTreatmentPlan(diagnosis);
+    resultData = getFallbackTreatmentPlan(diagnosis);
   }
 
   await logAiTransaction({
@@ -356,13 +360,13 @@ Do not include explanations, extra text, or markdown code blocks.`;
         totalTokens: completion.usage?.total_tokens
       };
     } catch (err) {
-      console.warn(`[AI Alerts] OpenAI call failed or timed out: ${err.message}. Invoking Smart Sandbox fallback.`);
+      console.warn(`[AI Alerts] OpenAI call failed: ${err.message}. Using fallback.`);
       status = 'FALLBACK';
       resultData = { hasAlert: false, alertMessage: '', severity: 'info' };
     }
   } else {
     status = 'FALLBACK';
-    // Sandbox parsing logic
+    // Fallback parsing logic
     const combined = `${symptoms || ''} ${history || ''}`.toLowerCase();
     if (combined.includes('penicillin') || combined.includes('latex')) {
       resultData = {
@@ -436,7 +440,7 @@ Do not include explanations, extra text, or markdown code blocks.`;
         totalTokens: completion.usage?.total_tokens
       };
     } catch (err) {
-      console.warn(`[AI Notes Summarize] OpenAI call failed or timed out: ${err.message}. Invoking Smart Sandbox fallback.`);
+      console.warn(`[AI Notes Summarize] OpenAI call failed: ${err.message}. Using fallback.`);
       status = 'FALLBACK';
       resultData = {
         summary: [
@@ -447,7 +451,7 @@ Do not include explanations, extra text, or markdown code blocks.`;
     }
   } else {
     status = 'FALLBACK';
-    // Sandbox parsing logic
+    // Fallback parsing logic
     const summary = [];
     const lines = notes.split('\n').filter(l => l.trim().length > 10);
     if (lines.length > 0) {
@@ -503,7 +507,7 @@ Do not include explanations, extra text, or markdown code blocks.`;
         totalTokens: completion.usage?.total_tokens
       };
     } catch (err) {
-      console.warn(`[AI Risk Score] OpenAI call failed or timed out: ${err.message}. Invoking Smart Sandbox fallback.`);
+      console.warn(`[AI Risk Score] OpenAI call failed: ${err.message}. Using fallback.`);
       status = 'FALLBACK';
       const combined = `${symptoms || ''} ${history || ''}`.toLowerCase();
       let score = 15;

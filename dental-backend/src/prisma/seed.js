@@ -13,6 +13,7 @@ async function main() {
   await prisma.crownCase.deleteMany();
   await prisma.implantCase.deleteMany();
   await prisma.labCase.deleteMany();
+  await prisma.chairsideSession.deleteMany();
   await prisma.odontogram.deleteMany();
   await prisma.treatmentPlan.deleteMany();
   await prisma.xrayFile.deleteMany();
@@ -201,6 +202,7 @@ async function main() {
       role: 'clinic_owner',
       status: 'Approved',
       clinicId: 'clinic-1',
+      phone: '(206) 555-0100',
     },
   });
 
@@ -213,6 +215,10 @@ async function main() {
       role: 'dentist',
       status: 'Approved',
       clinicId: 'clinic-1',
+      phone: '(206) 555-0101',
+      speciality: 'Dentistry',
+      assistantId: 'usr-assistant',
+      hygienistId: 'usr-hygienist',
     },
   });
 
@@ -225,6 +231,7 @@ async function main() {
       role: 'dental_assistant',
       status: 'Approved',
       clinicId: 'clinic-1',
+      phone: '(206) 555-0102',
     },
   });
 
@@ -237,6 +244,8 @@ async function main() {
       role: 'hygienist',
       status: 'Approved',
       clinicId: 'clinic-1',
+      phone: '(206) 555-0103',
+      speciality: 'Hygiene',
     },
   });
 
@@ -249,6 +258,7 @@ async function main() {
       role: 'front_desk',
       status: 'Approved',
       clinicId: 'clinic-1',
+      phone: '(206) 555-0104',
     },
   });
 
@@ -261,6 +271,7 @@ async function main() {
       role: 'billing_staff',
       status: 'Approved',
       clinicId: 'clinic-1',
+      phone: '(206) 555-0105',
     },
   });
 
@@ -273,6 +284,7 @@ async function main() {
       role: 'lab_coordinator',
       status: 'Approved',
       clinicId: 'clinic-1',
+      phone: '(206) 555-0106',
     },
   });
 

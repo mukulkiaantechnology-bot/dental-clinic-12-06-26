@@ -25,6 +25,8 @@ const errorHandler = (err, req, res, next) => {
 
   // Validation errors
   if (err.name === 'ValidationError') return error(res, err.message, 422);
+  if (err.name === 'MulterError') return error(res, err.message, 400);
+  if (err.code === 'LIMIT_FILE_SIZE') return error(res, 'File too large. Maximum size is 15MB.', 400);
 
   // Default 500
   const statusCode = err.statusCode || err.status || 500;

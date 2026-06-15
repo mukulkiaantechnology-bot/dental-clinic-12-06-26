@@ -18,10 +18,39 @@ const formatPatient = (pat) => {
 /**
  * List patients scoped by clinicId
  */
-const listPatients = async ({ clinicId }) => {
+const listPatients = async ({ clinicId, userId, role }) => {
+  const where = { clinicId };
+
+  if (role === 'dentist') {
+    where.appointments = {
+      some: {
+        OR: [
+          { dentistId: userId },
+          { assignedDoctorId: userId }
+        ]
+      }
+    };
+  } else if (role === 'hygienist') {
+    where.appointments = {
+      some: { assignedHygienistId: userId }
+    };
+  } else if (role === 'dental_assistant' || role === 'assistant') {
+    where.appointments = {
+      some: { assignedAssistantId: userId }
+    };
+  }
+
   const patients = await prisma.patient.findMany({
-    where: { clinicId },
+    where,
     orderBy: { name: 'asc' },
+    include: {
+      _count: {
+        select: {
+          clinicalNotes: true,
+          xrayFiles: true
+        }
+      }
+    }
   });
   return patients.map(formatPatient);
 };
@@ -127,7 +156,7 @@ const createPatient = async ({ clinicId, body }) => {
       gender: gender || 'Other',
       phone,
       email: email || null,
-      status: status || 'Active',
+      status: status || 'Inactive',
       address: address || '',
       allergies: allergyStr,
       insuranceProvider: insuranceProvider || 'None',
@@ -334,18 +363,56 @@ const createClinicalNote = async ({ patientId, clinicId, content, authorId }) =>
   });
 };
 
-const createXray = async ({ patientId, clinicId, name, notes, isScanned, aiReport, fileUrl }) => {
+const createXray = async ({ patientId, clinicId, name, notes, isScanned, aiReport, fileUrl, type }) => {
+  const notePrefix = type ? `[${type}] ` : '';
   return prisma.xrayFile.create({
     data: {
       clinicId,
       patientId,
-      name,
+      name: name || 'radiograph_upload.jpg',
       date: new Date(),
-      notes: notes || '',
+      notes: `${notePrefix}${notes || ''}`.trim(),
       isScanned: isScanned || false,
       aiReport: aiReport || '',
-      fileUrl: fileUrl || ''
-    }
+      fileUrl: fileUrl || '',
+    },
+  });
+};
+
+const updateXray = async ({ xrayId, clinicId, isScanned, aiReport }) => {
+  const xray = await prisma.xrayFile.findFirst({
+    where: { id: xrayId, clinicId },
+  });
+  if (!xray) {
+    throw Object.assign(new Error('X-ray not found'), { statusCode: 404 });
+  }
+
+  return prisma.xrayFile.update({
+    where: { id: xrayId },
+    data: {
+      ...(isScanned !== undefined && { isScanned }),
+      ...(aiReport !== undefined && { aiReport }),
+    },
+  });
+};
+
+const updatePerioChart = async ({ patientId, clinicId, perioChartData }) => {
+  const patient = await prisma.patient.findFirst({ where: { id: patientId, clinicId } });
+  if (!patient) throw Object.assign(new Error('Patient not found'), { statusCode: 404 });
+
+  return prisma.patient.update({
+    where: { id: patientId },
+    data: { perioChartData }
+  });
+};
+
+const updateRiskProfile = async ({ patientId, clinicId, riskProfileData }) => {
+  const patient = await prisma.patient.findFirst({ where: { id: patientId, clinicId } });
+  if (!patient) throw Object.assign(new Error('Patient not found'), { statusCode: 404 });
+
+  return prisma.patient.update({
+    where: { id: patientId },
+    data: { riskProfileData }
   });
 };
 
@@ -362,6 +429,9 @@ module.exports = {
   createPrescription,
   deletePrescription,
   createClinicalNote,
-  createXray
+  createXray,
+  updateXray,
+  updatePerioChart,
+  updateRiskProfile
 };
 

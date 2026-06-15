@@ -8,7 +8,7 @@ const { success } = require('../../utils/response');
 const router = Router();
 
 router.use(authenticate);
-router.use(authorize('super_admin'));
+router.use(authorize('super_admin', 'clinic_owner'));
 
 // GET /audit-logs
 router.get('/', async (req, res, next) => {

@@ -15,6 +15,7 @@ const aiRoutes = require('../modules/ai/ai.routes');
 const dashboardRoutes = require('../modules/dashboard/dashboard.routes');
 const waitlistRoutes = require('../modules/waitlist/waitlist.routes');
 const insuranceCheckRoutes = require('../modules/insuranceChecks/insuranceCheck.routes');
+const labCaseRoutes = require('../modules/labCases/labCase.routes');
 
 const { requireActiveSubscription } = require('../middlewares/subscription.middleware');
 const { authenticate } = require('../middlewares/auth.middleware');
@@ -34,6 +35,7 @@ router.use('/ai', authenticate, requireActiveSubscription, aiRoutes);
 router.use('/dashboard', authenticate, requireActiveSubscription, dashboardRoutes);
 router.use('/waitlist', authenticate, requireActiveSubscription, waitlistRoutes);
 router.use('/insurance-checks', authenticate, requireActiveSubscription, insuranceCheckRoutes);
+router.use('/lab-cases', authenticate, requireActiveSubscription, labCaseRoutes);
 
 // Platform Management Endpoints
 router.use('/clinics', clinicRoutes);

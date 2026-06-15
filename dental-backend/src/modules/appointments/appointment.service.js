@@ -1,6 +1,7 @@
 'use strict';
 const prisma = require('../../config/db');
 const alertService = require('../alerts/alert.service');
+const { DEFAULT_CHAIRSIDE_TASKS } = require('../../constants/chairsideTasks');
 
 /**
  * List appointments — clinic-scoped, optionally filtered by date/role
@@ -19,10 +20,7 @@ const listAppointments = async ({ clinicId, role, userId, date }) => {
 
   // Hygienist: sees appointments assigned to them
   if (role === 'hygienist') {
-    where.OR = [
-      { assignedHygienistId: userId },
-      { hygienistName: { not: null } }
-    ];
+    where.assignedHygienistId = userId;
   }
 
   // Dentist: sees only their own appointments
@@ -33,9 +31,21 @@ const listAppointments = async ({ clinicId, role, userId, date }) => {
     ];
   }
 
-  // Assistant: sees only appointments assigned to them
+  // Assistant: sees appointments assigned to them OR appointments for dentists they assist
   if (role === 'dental_assistant' || role === 'assistant') {
-    where.assignedAssistantId = userId;
+    where.OR = [
+      { assignedAssistantId: userId },
+      {
+        assignedDoctor: {
+          assistantId: userId
+        }
+      },
+      {
+        dentist: {
+          assistantId: userId
+        }
+      }
+    ];
   }
 
   // Patient: sees only their own appointments
@@ -463,42 +473,113 @@ const updateWorkflowStage = async (id, stage, clinicId) => {
     }
   }
 
-  if (stage === 'IN_PROGRESS' || stage === 'CLEANING_PENDING' || stage === 'TREATMENT_PENDING') {
+  if (stage === 'IN_PROGRESS') {
+    const doctorId = appointment.assignedDoctorId || appointment.dentistId;
+    if (doctorId) {
+      await alertService.createAlert({
+        clinicId,
+        userId: doctorId,
+        role: 'dentist',
+        title: 'Patient With Assistant',
+        message: `Patient ${appointment.patientName} is now with the dental assistant for preparation.`,
+        type: 'info'
+      });
+    } else {
+      await alertService.createAlert({
+        clinicId,
+        role: 'dentist',
+        title: 'Patient With Assistant',
+        message: `Patient ${appointment.patientName} is now with the dental assistant for preparation.`,
+        type: 'info'
+      });
+    }
+    await alertService.createAlert({
+      clinicId,
+      role: 'hygienist',
+      title: 'Patient With Assistant',
+      message: `Patient ${appointment.patientName} is currently with the assistant. Dentist treatment has not started yet.`,
+      type: 'info'
+    });
+    if (appointment.assignedAssistantId) {
+      await alertService.createAlert({
+        clinicId,
+        userId: appointment.assignedAssistantId,
+        role: 'dental_assistant',
+        title: 'Preparation Started',
+        message: `Patient ${appointment.patientName} is ready for chairside preparation.`,
+        type: 'warning'
+      });
+    }
+    await alertService.createAlert({
+      clinicId,
+      role: 'front_desk',
+      title: 'Patient In Preparation',
+      message: `Patient ${appointment.patientName} is with the assistant for intake and prep.`,
+      type: 'info'
+    });
+  }
+
+  if (stage === 'TREATMENT_PENDING') {
+    const doctorId = appointment.assignedDoctorId || appointment.dentistId;
+    if (doctorId) {
+      await alertService.createAlert({
+        clinicId,
+        userId: doctorId,
+        role: 'dentist',
+        title: 'Ready for Treatment',
+        message: `Patient ${appointment.patientName} has been assigned to you. Please begin clinical treatment.`,
+        type: 'warning'
+      });
+    }
+    await alertService.createAlert({
+      clinicId,
+      role: 'hygienist',
+      title: 'Dentist Treatment In Progress',
+      message: `Dentist is now treating patient ${appointment.patientName}. Hygiene cleaning will follow when ready.`,
+      type: 'info'
+    });
+    await alertService.createAlert({
+      clinicId,
+      role: 'front_desk',
+      title: 'Dentist Treatment Started',
+      message: `Patient ${appointment.patientName} is now with the dentist for treatment.`,
+      type: 'info'
+    });
+  }
+
+  if (stage === 'CLEANING_PENDING') {
     if (appointment.assignedDoctorId) {
       await alertService.createAlert({
         clinicId,
         userId: appointment.assignedDoctorId,
         role: 'dentist',
         title: 'Treatment Stage Updated',
-        message: `Appointment for ${appointment.patientName} is now ${stage.replace('_', ' ')}.`,
+        message: `Appointment for ${appointment.patientName} is now ${stage.replace(/_/g, ' ')}.`,
         type: 'info'
       });
     }
-    // Also notify assistant
     if (appointment.assignedAssistantId) {
       await alertService.createAlert({
         clinicId,
         userId: appointment.assignedAssistantId,
         role: 'dental_assistant',
         title: 'Treatment In Progress',
-        message: `Treatment for ${appointment.patientName} has started. Chairside assist mode active.`,
+        message: `Treatment for ${appointment.patientName} has advanced to hygiene cleaning.`,
         type: 'info'
       });
     }
-    // Also notify front desk
     await alertService.createAlert({
       clinicId,
       role: 'front_desk',
       title: 'Patient In Treatment',
-      message: `Patient ${appointment.patientName} is now in treatment stage: ${stage.replace('_', ' ')}.`,
+      message: `Patient ${appointment.patientName} is now in treatment stage: ${stage.replace(/_/g, ' ')}.`,
       type: 'info'
     });
-    // Also notify clinic owner
     await alertService.createAlert({
       clinicId,
       role: 'clinic_owner',
       title: 'Clinical Workflow Advanced',
-      message: `Appointment for ${appointment.patientName} advanced to ${stage.replace('_', ' ')}.`,
+      message: `Appointment for ${appointment.patientName} advanced to ${stage.replace(/_/g, ' ')}.`,
       type: 'info'
     });
   }
@@ -580,6 +661,78 @@ const formatAppointment = (appt) => ({
   updatedAt: appt.updatedAt,
 });
 
+const formatChairsideSession = (session) => ({
+  id: session.id,
+  appointmentId: session.appointmentId,
+  patientId: session.patientId,
+  tasks: session.tasks,
+  activeStage: session.activeStage,
+  timerSeconds: session.timerSeconds,
+  timerRunning: session.timerRunning,
+  updatedAt: session.updatedAt,
+});
+
+const getChairsideSession = async (appointmentId, clinicId) => {
+  const appointment = await prisma.appointment.findFirst({
+    where: { id: appointmentId, clinicId },
+  });
+  if (!appointment) {
+    throw Object.assign(new Error('Appointment not found'), { statusCode: 404 });
+  }
+
+  let session = await prisma.chairsideSession.findUnique({
+    where: { appointmentId },
+  });
+
+  if (!session) {
+    session = await prisma.chairsideSession.create({
+      data: {
+        clinicId,
+        appointmentId,
+        patientId: appointment.patientId,
+        tasks: DEFAULT_CHAIRSIDE_TASKS,
+        activeStage: 'Prep',
+        timerSeconds: 0,
+        timerRunning: false,
+      },
+    });
+  }
+
+  return formatChairsideSession(session);
+};
+
+const upsertChairsideSession = async (appointmentId, clinicId, body) => {
+  const appointment = await prisma.appointment.findFirst({
+    where: { id: appointmentId, clinicId },
+  });
+  if (!appointment) {
+    throw Object.assign(new Error('Appointment not found'), { statusCode: 404 });
+  }
+
+  const { tasks, activeStage, timerSeconds, timerRunning } = body;
+
+  const session = await prisma.chairsideSession.upsert({
+    where: { appointmentId },
+    update: {
+      ...(tasks !== undefined && { tasks }),
+      ...(activeStage !== undefined && { activeStage }),
+      ...(timerSeconds !== undefined && { timerSeconds }),
+      ...(timerRunning !== undefined && { timerRunning }),
+    },
+    create: {
+      clinicId,
+      appointmentId,
+      patientId: appointment.patientId,
+      tasks: tasks || DEFAULT_CHAIRSIDE_TASKS,
+      activeStage: activeStage || 'Prep',
+      timerSeconds: timerSeconds ?? 0,
+      timerRunning: timerRunning ?? false,
+    },
+  });
+
+  return formatChairsideSession(session);
+};
+
 module.exports = {
   listAppointments,
   createAppointment,
@@ -589,4 +742,6 @@ module.exports = {
   assignAssistant,
   assignHygienist,
   updateWorkflowStage,
+  getChairsideSession,
+  upsertChairsideSession,
 };

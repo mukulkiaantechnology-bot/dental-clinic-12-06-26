@@ -29,7 +29,7 @@ router.post(
 
 router.put(
   '/:id',
-  authorize('super_admin'),
+  authorize('super_admin', 'clinic_owner'),
   controller.update
 );
 

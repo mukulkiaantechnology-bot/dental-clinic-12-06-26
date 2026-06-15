@@ -86,6 +86,10 @@ const login = async ({ email, password }) => {
     throw Object.assign(new Error('Account suspended. Contact administrator.'), { statusCode: 403 });
   }
 
+  if (user.clinic && user.clinic.status === 'Suspended') {
+    throw Object.assign(new Error("Your clinic's account is suspended. Please contact the administrator."), { statusCode: 403 });
+  }
+
   const tokenPayload = {
     id: user.id,
     email: user.email,

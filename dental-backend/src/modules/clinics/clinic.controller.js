@@ -33,6 +33,9 @@ const create = async (req, res, next) => {
 const update = async (req, res, next) => {
   try {
     const { id } = req.params;
+    if (req.user.role === 'clinic_owner' && req.user.clinicId !== id) {
+      return res.status(403).json({ success: false, message: 'Access denied: Cannot update a different clinic.' });
+    }
     const clinic = await clinicService.updateClinic(id, req.body);
     return success(res, clinic, 'Clinic updated successfully');
   } catch (err) {

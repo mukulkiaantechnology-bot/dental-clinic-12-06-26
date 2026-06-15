@@ -5,7 +5,11 @@ const { success } = require('../../utils/response');
 const list = async (req, res, next) => {
   try {
     const clinicId = req.clinicId || req.user.clinicId;
-    const patients = await patientService.listPatients({ clinicId });
+    const patients = await patientService.listPatients({ 
+      clinicId, 
+      userId: req.user.id, 
+      role: req.user.role 
+    });
     return success(res, patients, 'Patients list fetched successfully');
   } catch (err) {
     next(err);
@@ -142,9 +146,61 @@ const createXray = async (req, res, next) => {
   try {
     const { id: patientId } = req.params;
     const clinicId = req.clinicId || req.user.clinicId;
-    const { name, notes, isScanned, aiReport, fileUrl } = req.body;
-    const result = await patientService.createXray({ patientId, clinicId, name, notes, isScanned, aiReport, fileUrl });
+    const { notes, isScanned, aiReport, type } = req.body;
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ success: false, message: 'X-ray file is required' });
+    }
+
+    const fileUrl = `/uploads/xrays/${file.filename}`;
+    const result = await patientService.createXray({
+      patientId,
+      clinicId,
+      name: file.originalname,
+      notes,
+      isScanned,
+      aiReport,
+      fileUrl,
+      type: type || 'General',
+    });
     return success(res, result, 'X-ray record added successfully', 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const updateXray = async (req, res, next) => {
+  try {
+    const { xrayId } = req.params;
+    const clinicId = req.clinicId || req.user.clinicId;
+    const { isScanned, aiReport } = req.body;
+    const result = await patientService.updateXray({ xrayId, clinicId, isScanned, aiReport });
+    return success(res, result, 'X-ray updated successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const updatePerioChart = async (req, res, next) => {
+  try {
+    const { id: patientId } = req.params;
+    const clinicId = req.clinicId || req.user.clinicId;
+    const { perioChartData } = req.body;
+    const result = await patientService.updatePerioChart({ patientId, clinicId, perioChartData });
+    return success(res, result, 'Perio chart updated successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const updateRiskProfile = async (req, res, next) => {
+  try {
+    const { id: patientId } = req.params;
+    const clinicId = req.clinicId || req.user.clinicId;
+    const { riskProfileData } = req.body;
+    const result = await patientService.updateRiskProfile({ patientId, clinicId, riskProfileData });
+    return success(res, result, 'Risk profile updated successfully');
   } catch (err) {
     next(err);
   }
@@ -163,5 +219,8 @@ module.exports = {
   createPrescription,
   deletePrescription,
   createClinicalNote,
-  createXray
+  createXray,
+  updateXray,
+  updatePerioChart,
+  updateRiskProfile
 };

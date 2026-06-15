@@ -38,8 +38,26 @@ const markAllRead = async (req, res, next) => {
   }
 };
 
+const create = async (req, res, next) => {
+  try {
+    const { title, message, type, role, targetClinicId } = req.body;
+    const alert = await alertService.createAlert({
+      clinicId: targetClinicId || null,
+      userId: null,
+      role: role || 'super_admin',
+      title,
+      message,
+      type
+    });
+    return success(res, alert, 'Alert created successfully', 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   list,
   markRead,
-  markAllRead
+  markAllRead,
+  create
 };

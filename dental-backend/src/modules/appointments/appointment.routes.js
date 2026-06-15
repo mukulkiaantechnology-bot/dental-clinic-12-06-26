@@ -62,6 +62,20 @@ router.put(
   controller.assignHygienist
 );
 
+// GET /api/v1/appointments/:id/chairside
+router.get(
+  '/:id/chairside',
+  authorize('super_admin', 'clinic_owner', 'dentist', 'dental_assistant', 'hygienist'),
+  controller.getChairside
+);
+
+// PUT /api/v1/appointments/:id/chairside
+router.put(
+  '/:id/chairside',
+  authorize('super_admin', 'clinic_owner', 'dentist', 'dental_assistant'),
+  controller.updateChairside
+);
+
 // PUT /api/v1/appointments/:id
 router.put(
   '/:id',

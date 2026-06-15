@@ -163,6 +163,28 @@ const remove = async (req, res, next) => {
   }
 };
 
+const getChairside = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const clinicId = req.clinicId || req.user.clinicId;
+    const session = await appointmentService.getChairsideSession(id, clinicId);
+    return success(res, session, 'Chairside session fetched');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const updateChairside = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const clinicId = req.clinicId || req.user.clinicId;
+    const session = await appointmentService.upsertChairsideSession(id, clinicId, req.body);
+    return success(res, session, 'Chairside session saved');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   list,
   create,
@@ -172,5 +194,7 @@ module.exports = {
   assignAssistant,
   assignHygienist,
   update,
-  remove
+  remove,
+  getChairside,
+  updateChairside,
 };

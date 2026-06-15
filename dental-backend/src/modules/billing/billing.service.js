@@ -188,9 +188,18 @@ const deactivateSubscription = async (stripeSubscriptionId) => {
   console.log(`[SaaS Subscriptions] Suspended clinic ${subscription.clinicId} subscription (Stripe ID: ${stripeSubscriptionId})`);
 };
 
-const listInvoices = async (clinicId) => {
+const listInvoices = async (clinicId, userId, role) => {
+  const where = { clinicId };
+  if (role === 'patient') {
+    const patient = await prisma.patient.findFirst({ where: { userId } });
+    if (patient) {
+      where.patientId = patient.id;
+    } else {
+      return [];
+    }
+  }
   return prisma.invoice.findMany({
-    where: { clinicId },
+    where,
     orderBy: { date: 'desc' }
   });
 };
@@ -210,7 +219,7 @@ const createInvoice = async (clinicId, data) => {
       insurancePaid: parseFloat(data.insurancePaid) || 0.0,
       patientPaid: parseFloat(data.patientPaid) || 0.0,
       status: data.status || 'Unpaid',
-      items: data.items || []
+      items: typeof data.items === 'string' ? data.items : JSON.stringify(data.items || [])
     }
   });
 };
@@ -225,6 +234,9 @@ const updateInvoice = async (clinicId, id, updates) => {
   if (updates.discount !== undefined) data.discount = parseFloat(updates.discount);
   if (updates.insurancePaid !== undefined) data.insurancePaid = parseFloat(updates.insurancePaid);
   if (updates.patientPaid !== undefined) data.patientPaid = parseFloat(updates.patientPaid);
+  if (updates.items !== undefined) {
+    data.items = typeof updates.items === 'string' ? updates.items : JSON.stringify(updates.items);
+  }
 
   await prisma.invoice.updateMany({
     where: { id, clinicId },

@@ -11,6 +11,7 @@ router.use(authenticate);
 router.use(clinicGuard);
 
 router.get('/', controller.list);
+router.post('/', controller.create);
 router.put('/:id/read', controller.markRead);
 router.put('/read-all', controller.markAllRead);
 

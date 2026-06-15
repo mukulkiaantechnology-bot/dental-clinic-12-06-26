@@ -1,6 +1,7 @@
 'use strict';
 require('dotenv').config();
 
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -11,11 +12,14 @@ const cookieParser = require('cookie-parser');
 const config = require('./config/env');
 const routes = require('./routes');
 const { errorHandler, notFound } = require('./middlewares/error.middleware');
+const { UPLOAD_ROOT } = require('./middlewares/upload.middleware');
 
 const app = express();
 
 // ─── SECURITY ─────────────────────────────────────────────────────────────────
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 app.use(cors({
@@ -30,6 +34,9 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+
+// ─── STATIC UPLOADS ───────────────────────────────────────────────────────────
+app.use('/uploads', express.static(UPLOAD_ROOT));
 
 // ─── RATE LIMITING ────────────────────────────────────────────────────────────
 app.use('/api/', rateLimit({

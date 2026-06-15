@@ -3,6 +3,7 @@ const { Router } = require('express');
 const controller = require('./patient.controller');
 const { authenticate } = require('../../middlewares/auth.middleware');
 const { clinicGuard, authorize } = require('../../middlewares/role.middleware');
+const { xrayUpload } = require('../../middlewares/upload.middleware');
 
 const router = Router();
 
@@ -36,7 +37,7 @@ router.post(
 
 router.put(
   '/:id',
-  authorize('super_admin', 'clinic_owner', 'dentist', 'dental_assistant', 'front_desk'),
+  authorize('super_admin', 'clinic_owner', 'dentist', 'dental_assistant', 'hygienist', 'front_desk'),
   controller.update
 );
 
@@ -91,7 +92,26 @@ router.post(
 router.post(
   '/:id/xrays',
   authorize('super_admin', 'clinic_owner', 'dentist', 'dental_assistant', 'hygienist'),
+  xrayUpload.single('file'),
   controller.createXray
+);
+
+router.put(
+  '/:id/xrays/:xrayId',
+  authorize('super_admin', 'clinic_owner', 'dentist', 'dental_assistant', 'hygienist'),
+  controller.updateXray
+);
+
+router.put(
+  '/:id/perio-chart',
+  authorize('super_admin', 'clinic_owner', 'dentist', 'hygienist'),
+  controller.updatePerioChart
+);
+
+router.put(
+  '/:id/risk-profile',
+  authorize('super_admin', 'clinic_owner', 'dentist', 'hygienist'),
+  controller.updateRiskProfile
 );
 
 module.exports = router;

@@ -137,7 +137,7 @@ const handleWebhook = async (req, res, next) => {
 const listInvoices = async (req, res, next) => {
   try {
     const clinicId = req.user.clinicId;
-    const result = await billingService.listInvoices(clinicId);
+    const result = await billingService.listInvoices(clinicId, req.user.id, req.user.role);
     return success(res, result, 'Invoices fetched successfully');
   } catch (err) {
     next(err);

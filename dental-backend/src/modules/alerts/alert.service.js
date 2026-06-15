@@ -23,9 +23,10 @@ const createAlert = async ({ clinicId, userId, role, title, message, type }) => 
  * super_admin with no clinicId sees all alerts across all clinics
  */
 const listAlerts = async ({ clinicId, userId, role }) => {
-  // super_admin without clinicId: show all alerts platform-wide
+  // super_admin without clinicId: show only alerts specifically targeted to super_admin
   if (role === 'super_admin' && !clinicId) {
     return await prisma.alert.findMany({
+      where: { role: 'super_admin' },
       orderBy: { createdAt: 'desc' },
       take: 200
     });
@@ -36,13 +37,15 @@ const listAlerts = async ({ clinicId, userId, role }) => {
 
   const where = { clinicId };
 
-  // Clinic owners see all alerts for their clinic
-  if (role !== 'clinic_owner' && role !== 'super_admin') {
+  // Clinic owners see all alerts for their clinic except those for super_admin
+  if (role === 'clinic_owner') {
+    where.role = { not: 'super_admin' };
+  } else if (role !== 'super_admin') {
     where.OR = [
-      // Alerts specific to this user
+      // Alerts specifically for this user (regardless of role)
       ...(userId ? [{ userId }] : []),
-      // Alerts specific to this role
-      ...(role ? [{ role }] : []),
+      // Alerts for this role, BUT ONLY if they are not targeted to a specific user
+      ...(role ? [{ role, userId: null }] : []),
       // Global clinic alerts (no specific user or role)
       { userId: null, role: null }
     ];
@@ -68,10 +71,10 @@ const markAsRead = async (id) => {
  * Mark all alerts as read for a specific user/role context
  */
 const markAllAsRead = async ({ clinicId, userId, role }) => {
-  // super_admin without clinicId: mark all globally
+  // super_admin without clinicId: mark all their specific alerts globally
   if (role === 'super_admin' && !clinicId) {
     return await prisma.alert.updateMany({
-      where: { read: false },
+      where: { read: false, role: 'super_admin' },
       data: { read: true }
     });
   }
@@ -83,10 +86,12 @@ const markAllAsRead = async ({ clinicId, userId, role }) => {
     read: false
   };
 
-  if (role !== 'clinic_owner' && role !== 'super_admin') {
+  if (role === 'clinic_owner') {
+    where.role = { not: 'super_admin' };
+  } else if (role !== 'super_admin') {
     where.OR = [
       ...(userId ? [{ userId }] : []),
-      ...(role ? [{ role }] : []),
+      ...(role ? [{ role, userId: null }] : []),
       { userId: null, role: null }
     ];
   }
