@@ -17,7 +17,10 @@ const buildProfile = (user) => ({
   avatarUrl: user.avatarUrl || null,
   status: user.status,
   patientId: user.patientProfile?.id || null,
-  clinic: user.clinic || null,
+  clinic: user.clinic ? {
+    ...user.clinic,
+    aiModules: typeof user.clinic.aiModules === 'string' ? JSON.parse(user.clinic.aiModules) : (user.clinic.aiModules || {})
+  } : null,
 });
 
 /**
@@ -188,9 +191,7 @@ const getMe = async (userId) => {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: {
-      clinic: {
-        select: { id: true, name: true, location: true, plan: true, status: true },
-      },
+      clinic: true,
       patientProfile: true
     },
   });
@@ -199,10 +200,7 @@ const getMe = async (userId) => {
     throw Object.assign(new Error('User not found'), { statusCode: 404 });
   }
 
-  return {
-    ...buildProfile(user),
-    clinic: user.clinic || null,
-  };
+  return buildProfile(user);
 };
 
 module.exports = { register, login, refreshAccessToken, logout, getMe };

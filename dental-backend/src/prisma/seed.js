@@ -91,7 +91,7 @@ async function main() {
       plan: 'Enterprise',
       monthlyFee: 499.0,
       performanceScore: 94,
-      aiModules: { diagnostic: true, recallSMS: true, workload: true },
+      aiModules: JSON.stringify({ diagnostic: true, recallSMS: true, workload: true }),
     },
   });
 
@@ -105,7 +105,7 @@ async function main() {
       plan: 'Premium',
       monthlyFee: 299.0,
       performanceScore: 89,
-      aiModules: { diagnostic: true, recallSMS: true, workload: false },
+      aiModules: JSON.stringify({ diagnostic: true, recallSMS: true, workload: false }),
     },
   });
 
@@ -119,7 +119,7 @@ async function main() {
       plan: 'Basic',
       monthlyFee: 149.0,
       performanceScore: 81,
-      aiModules: { diagnostic: false, recallSMS: false, workload: false },
+      aiModules: JSON.stringify({ diagnostic: false, recallSMS: false, workload: false }),
     },
   });
 
@@ -133,7 +133,7 @@ async function main() {
       plan: 'Trial',
       monthlyFee: 0.0,
       performanceScore: 78,
-      aiModules: { diagnostic: true, recallSMS: false, workload: false },
+      aiModules: JSON.stringify({ diagnostic: true, recallSMS: false, workload: false }),
     },
   });
 
