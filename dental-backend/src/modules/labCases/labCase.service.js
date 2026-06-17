@@ -50,7 +50,7 @@ const createLabCase = async ({ clinicId, body }) => {
       expectedDelivery: new Date(expectedDelivery),
       cost: parseFloat(cost) || 0,
       notes: notes || '',
-      attachments: attachments || [],
+      attachments: typeof attachments === 'string' ? attachments : JSON.stringify(attachments || []),
       labName: labName || 'Pending Assignment',
       ...(type === 'Crown' && {
         crownDetails: {

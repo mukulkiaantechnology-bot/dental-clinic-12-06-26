@@ -299,10 +299,11 @@ const deletePatient = async ({ id, clinicId }) => {
 };
 
 const updateOdontogram = async ({ patientId, clinicId, chartData }) => {
+  const chartDataStr = typeof chartData === 'string' ? chartData : JSON.stringify(chartData);
   return prisma.odontogram.upsert({
     where: { patientId },
-    update: { chartData },
-    create: { clinicId, patientId, chartData }
+    update: { chartData: chartDataStr },
+    create: { clinicId, patientId, chartData: chartDataStr }
   });
 };
 
